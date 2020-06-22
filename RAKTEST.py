@@ -81,6 +81,11 @@ class CMD:
         self.answer= " ".join(CMDInfo[4:]).strip()
         self.successTimes= 0
         self.wrongStats={}
+        self.switcher= {
+            "R": -1, # Retry
+            "K": 0, # Keep running
+            "E": "exit", # Exit
+        }
 
 
     def execute (self, outputFile, logFile, ser):
@@ -105,35 +110,59 @@ class CMD:
                 if len(responseStr.strip())<1:
                     i-=1
                     self.times+=1
-                elif selfAnsShort==self.answer: #????????????????
+                    print(f"{self.AT}收到空白回复，建议给与多点时间")
+                elif selfAnsShort==self.answer: # if the response is correct
                     self.successTimes+=1
-                else:
-                    logFile.write(f"{str(i)}. {self.AT}出错: {responseStr}")
-                    if responseStr.startswith("ERROR: "):
-                        errorCode= int(responseStr[6:9].strip())# need to fix
-                        if  errorCode in self.wrongStats:
-                            self.wrongStats[errorCode]+= 1
-                        else: 
-                            self.wrongStats[errorCode]=1
+                else: # if the respnse is wrong
+                    op= self.switcher.get(self.ifWrong)
+                    if op == "exit":
+                        ser.close()
+                        sys.exit()
+                        self.reportOnLogFile(logFile, i, responseStr, op)
                     else:
-                        if 'others' in self.wrongStats:
-                            self.wrongStats[responseStr[6:]]+= 1
-                        else: 
-                            self.wrongStats['others']=1
+                        i += op
+                   
                 i+=1
             self.calErrorStats(outputFile)
         except serial.serialutil.SerialException as error:
             sys.exit(error.strerror)
     
+
+    def reportOnLogFile(self, logFile, i, responseStr, op):
+        '''
+        This function writes on the logfile if an error has been detected, and it also updates the statistics that would be used to produce the
+        outputfile.
+        '''
+        logFile.write(f"\r\n{self.AT} 第{str(i)}个出错:\r\n     {responseStr}")
+        if responseStr.startswith("ERROR: "):
+            errorCode= int(responseStr.strip()[6:])# need to fix
+            if  errorCode in self.wrongStats:
+                self.wrongStats[errorCode]+= 1
+            else: 
+                self.wrongStats[errorCode]=1
+        else:
+            if 'others' in self.wrongStats:
+                self.wrongStats[responseStr[6:]]+= 1
+            else: 
+                self.wrongStats['others']=1
+        if op == "exit":
+            logFile.write(f"\r\n{self.AT} 第{str(i)}个出错:\r\n     {responseStr}")
+        else:
+            logFile.write(f"\r\n{self.AT} 第{str(i)}个出错, 根据指令结束整个过程:\r\n     {responseStr}")
+
+
+    
+
     def calErrorStats(self, outputFile):
-        outputFile.write(f"{self.AT}: 运行{self.times}次； 成功{self.successTimes}次； 成功率为{100*self.successTimes/self.times}% \n")
+        outputFile.write(f"{self.AT}: 运行{self.times}次； 成功{self.successTimes}次； 成功率为{100*self.successTimes/self.times}% \r\n")
         print(self.wrongStats)
         for key in self.wrongStats:
             if type(key)==int:
                 outputFile.write(f"     ERROR {key}: 出现{self.wrongStats[key]}次； 占总错误的{100*self.wrongStats[key]/(self.times-self.successTimes)}%； 占全部的{100*self.wrongStats[key]/self.times}%")
             else:
                 outputFile.write(f"     其他错误：出现{self.wrongStats[key]}次；占总错误的{100*self.wrongStats[key]/(self.times-self.successTimes)}%；占全部的{100*self.wrongStats[key]/self.times}%")
-        outputFile.write("\n")
+        outputFile.write("\r\n")
+
 
 class loop:
     def __init__(self, loopNum, times):
@@ -149,8 +178,8 @@ class loop:
 
     def play(self, ser, outputFile,logFile):
         for t in range(1,self.times+1):
-            logFile.write(f"Loop '{self.id}'/第{self.id}个循环：\n")
-            outputFile.write(f"Loop '{self.id}'/第{self.id}个循环：\n")
+            logFile.write(f"Loop '{self.id}'/第{self.id}个循环：\r\n")
+            outputFile.write(f"Loop '{self.id}'/第{self.id}个循环：\r\n")
             for c in self.CMDList:
                 c.execute(outputFile, logFile, ser)
                 logFile.write('\r\n')
