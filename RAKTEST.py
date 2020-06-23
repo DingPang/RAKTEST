@@ -12,7 +12,7 @@ import time
 
 def parse_args():
     '''
-    Asking for input file and output file
+    Asking for the input file and the output file
     '''
     parser = argparse.ArgumentParser(description="RAK TEST")
     parser.add_argument('inputfile')
@@ -21,16 +21,21 @@ def parse_args():
     return [args.inputfile, args.outputfile]      
 
 def main():
+    '''
+    This main function gets executed first. 
+    '''
+    #IO stands for Input/Output
     IO= parse_args()
     inputFileName= IO[0]
     outputFileName= IO[1]
     logFileName= IO[1].split(".")[0]+"_Log"+".txt"
     inputFile= open(inputFileName)
+    #Check if an file with the same name of Outputfile already exists
     if path.exists(outputFileName):
         outputFile= open(outputFileName, 'w', encoding= "utf-8")
     else:
         outputFile= open(outputFileName, 'x', encoding= "utf-8")
-    
+    #Check if an file with the same name of Logfile Outputfile already exists
     if path.exists(logFileName):
         logFile= open(logFileName, 'w', encoding= "utf-8")
     else:
@@ -49,7 +54,8 @@ def main():
                 sys.exit(1)
             else:
                 try:
-                    ser = serial.Serial(portInfo[0], portInfo[1], timeout=0)  #Might need to play around with the timeout argument:
+                    #Setting ReadTimeOut to be zero just to initiate, we later give user the ability to change this time for every AT command:
+                    ser = serial.Serial(portInfo[0], portInfo[1], timeout=0)  
                 except serial.serialutil.SerialException as error:
                     sys.exit(error.strerror)
         else:
@@ -66,13 +72,15 @@ def main():
             else:
                 print(f"You have entered a line (line {lines.index(aline)}) falsely in the {inputFileName}, please check.")
                 sys.exit(1)
-        
     for l in loops:
           l.play(ser, outputFile, logFile)
     ser.close()
 
 class CMD:
     def __init__(self, CMDNum, CMDInfo):
+        '''
+        initiate an instance of CMD (a line in the input file.)
+        '''
         self.id= int (CMDNum)
         self.times= int(CMDInfo[0])
         self.AT= CMDInfo[1]
@@ -89,8 +97,11 @@ class CMD:
 
 
     def execute (self, outputFile, logFile, ser):
+        '''
+        Using Pyserial to execute a line of AT command
+        '''
         try:
-            print(f"正在跑'{self.AT}'")
+            print(f"running'{self.AT}'")
             ser.timeout=self.delay
             i=1
             while i < self.times+1:
@@ -107,8 +118,8 @@ class CMD:
                 print(responseStr.strip())
                 selfAnsShort= responseStr[0:len(self.answer)]
                 if len(responseStr.strip())<1:
-                    print(f"{self.AT}收到空白回复")
-                    logFile.write(f"{self.AT} 第{str(i)}个:收到空白回复\r\n")
+                    print(f"{self.AT}received an empty response")
+                    logFile.write(f"{self.AT} No.{str(i)}: received an empty response\r\n")
                     if 'Empty' in self.wrongStats:
                         self.wrongStats['Empty']+= 1
                     else: 
@@ -149,42 +160,54 @@ class CMD:
             else: 
                 self.wrongStats['others']=1
         if not op == "exit":
-            logFile.write(f"{self.AT} 第{str(i)}个出错:\r\n     {responseStr}")
+            logFile.write(f"{self.AT} No.{str(i)}:\r\n     {responseStr}")
         else:
-            logFile.write(f"{self.AT} 第{str(i)}个出错, 根据指令结束整个过程:\r\n     {responseStr}")
+            logFile.write(f"{self.AT} No.{str(i)}, terminating the entire process:\r\n     {responseStr}")
 
 
     
 
     def calErrorStats(self, outputFile):
-        outputFile.write(f"{self.AT}: 运行{self.times}次； 成功{self.successTimes}次； 成功率为{100*self.successTimes/self.times}% \r\n")
+        '''
+        This function simply calculate the errors and errors' rates, then write them to the ouput file.
+        '''
+        outputFile.write(f"{self.AT}: Total {self.times} runs; {self.successTimes} successes; success rate is {100*self.successTimes/self.times}%\r\n")
         for key in self.wrongStats:
-            if type(key)==int:
-                outputFile.write(f"     ERROR {key}: 出现{self.wrongStats[key]}次； 占全部的{100*self.wrongStats[key]/self.times}%\r\n")
+            if type(key)==int: 
+                outputFile.write(f"     ERROR {key}: appeared {self.wrongStats[key]} times； error rate is {100*self.wrongStats[key]/self.times}%\r\n")
             else:
                 if key == 'others':
-                    outputFile.write(f"     其他错误：出现{self.wrongStats[key]}次； 占全部的{100*self.wrongStats[key]/self.times}%\r\n")
+                    outputFile.write(f"     Other errors: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\r\n")
                 else:
-                    outputFile.write(f"     空白回复：出现{self.wrongStats[key]}次； 占全部的{100*self.wrongStats[key]/self.times}%\r\n")
+                    outputFile.write(f"     Empty response: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\r\n")
         outputFile.write("\r\n")
 
 
 class loop:
     def __init__(self, loopNum, times):
+        '''
+        initiate an instance of loop
+        '''
         self.id= loopNum
         self.times= times
         self.CMDList= []
     
 
     def addCMD(self,CMDNum,CMDInfo):
+        '''
+        Adding a line of AT command to this loop
+        '''
         target= CMD(CMDNum,CMDInfo)
         self.CMDList.append(target)
 
 
     def play(self, ser, outputFile,logFile):
+        '''
+        Runing/Playing this loop of AT Commands
+        '''
         for t in range(1,self.times+1):
-            logFile.write(f"Loop '{self.id}'/第{self.id}个循环：\r\n")
-            outputFile.write(f"Loop '{self.id}'/第{self.id}个循环：\r\n")
+            logFile.write(f"Loop '{self.id}'\r\n")
+            outputFile.write(f"Loop '{self.id}'\r\n")
             for c in self.CMDList:
                 c.execute(outputFile, logFile, ser)
             logFile.write('\r\n')
