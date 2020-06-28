@@ -140,8 +140,8 @@ class CMD:
                         i += op
                 i+=1
             self.calErrorStats(outputFile)
-        except serial.serialutil.SerialException as error:
-            sys.exit(error.strerror)
+        except (serial.serialutil.SerialException, KeyboardInterrupt) as error:
+            sys.exit(error)
     
 
     def reportOnLogFile(self, logFile, i, responseStr, op):
