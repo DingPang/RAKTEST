@@ -57,6 +57,7 @@ def main():
                     #Setting ReadTimeOut to be zero just to initiate, we later give user the ability to change this time for every AT command:
                     ser = serial.Serial(portInfo[0], portInfo[1], timeout=0)  
                 except serial.serialutil.SerialException as error:
+                    print("Cannot Open This Serial Port/ Wrong Baudrate")
                     sys.exit(error.strerror)
         else:
             if aline.startswith("Loop"):
