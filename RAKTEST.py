@@ -118,7 +118,7 @@ class CMD:
                 print(responseStr.strip())
                 selfAnsShort= responseStr[0:len(self.answer)]
                 if len(responseStr.strip())<1:
-                    print(f"{self.AT}received an empty response")
+                    print(f"{self.AT} received an empty response")
                     logFile.write(f"{self.AT} No.{str(i)}: received an empty response\r\n")
                     if 'Empty' in self.wrongStats:
                         self.wrongStats['Empty']+= 1
@@ -160,9 +160,9 @@ class CMD:
             else: 
                 self.wrongStats['others']=1
         if not op == "exit":
-            logFile.write(f"{self.AT} No.{str(i)}:\r\n     {responseStr}")
+            logFile.write(f"{self.AT} No.{str(i)}:\n     {responseStr}")
         else:
-            logFile.write(f"{self.AT} No.{str(i)}, terminating the entire process:\r\n     {responseStr}")
+            logFile.write(f"{self.AT} No.{str(i)}, terminating the entire process:\n     {responseStr}")
 
 
     
@@ -171,16 +171,16 @@ class CMD:
         '''
         This function simply calculate the errors and errors' rates, then write them to the ouput file.
         '''
-        outputFile.write(f"{self.AT}: Total {self.times} runs; {self.successTimes} successes; success rate is {100*self.successTimes/self.times}%\r\n")
+        outputFile.write(f"{self.AT}: Total {self.times} runs; {self.successTimes} successes; success rate is {100*self.successTimes/self.times}%\n")
         for key in self.wrongStats:
             if type(key)==int: 
-                outputFile.write(f"     ERROR {key}: appeared {self.wrongStats[key]} times； error rate is {100*self.wrongStats[key]/self.times}%\r\n")
+                outputFile.write(f"     ERROR {key}: appeared {self.wrongStats[key]} times； error rate is {100*self.wrongStats[key]/self.times}%\n")
             else:
                 if key == 'others':
-                    outputFile.write(f"     Other errors: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\r\n")
+                    outputFile.write(f"     Other errors: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\n")
                 else:
-                    outputFile.write(f"     Empty response: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\r\n")
-        outputFile.write("\r\n")
+                    outputFile.write(f"     Empty response: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\n")
+        outputFile.write("\n")
 
 
 class loop:
@@ -206,11 +206,11 @@ class loop:
         Runing/Playing this loop of AT Commands
         '''
         for t in range(1,self.times+1):
-            logFile.write(f"Loop '{self.id}'\r\n")
-            outputFile.write(f"Loop '{self.id}'\r\n")
+            logFile.write(f"Loop '{self.id}'\n")
+            outputFile.write(f"Loop '{self.id}'\n")
             for c in self.CMDList:
                 c.execute(outputFile, logFile, ser)
-            logFile.write('\r\n')
+            logFile.write('\n')
 
 
 if __name__ == "__main__":
