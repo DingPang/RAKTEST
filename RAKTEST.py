@@ -57,6 +57,7 @@ def main():
                     #Setting ReadTimeOut to be zero just to initiate, we later give user the ability to change this time for every AT command:
                     ser = serial.Serial(portInfo[0], portInfo[1], timeout=0)  
                 except serial.serialutil.SerialException as error:
+                    print("Cannot Open This Serial Port/ Wrong Baudrate")
                     sys.exit(error.strerror)
         else:
             if aline.startswith("Loop"):
@@ -96,7 +97,7 @@ class CMD:
         }
 
 
-    def execute (self, outputFile, logFile, ser):
+    def execute (self, outputFile, logFile, ser): 
         '''
         Using Pyserial to execute a line of AT command
         '''
@@ -105,26 +106,21 @@ class CMD:
             ser.timeout=self.delay
             i=1
             while i < self.times+1:
-                response = []
                 if self.AT:
                     ser.write(self.AT.encode() + b'\r')
-                while True:
-                    raw = ser.readline()
-                    if raw == b'':
-                        break
-                    line = raw.decode()
-                    response.append(line)
-                responseStr= "".join(response)
-                print(responseStr.strip())
+                responseStr=""
+                while len(responseStr.strip())<1:
+                    responseStr= self.read(ser)
+                print(responseStr)
                 selfAnsShort= responseStr[0:len(self.answer)]
-                if len(responseStr.strip())<1:
-                    print(f"{self.AT} received an empty response")
-                    logFile.write(f"{self.AT} No.{str(i)}: received an empty response\r\n")
-                    if 'Empty' in self.wrongStats:
-                        self.wrongStats['Empty']+= 1
-                    else: 
-                        self.wrongStats['Empty']=1
-                elif selfAnsShort==self.answer: # if the response is correct
+                # if len(responseStr.strip())<1:
+                #     print(f"{self.AT}received an empty response")
+                #     logFile.write(f"{self.AT} No.{str(i)}: received an empty response\r\n")
+                #     if 'Empty' in self.wrongStats:
+                #         self.wrongStats['Empty']+= 1
+                #     else: 
+                #         self.wrongStats['Empty']=1
+                if selfAnsShort.casefold()==self.answer.casefold(): # if the response is correct
                     self.successTimes+=1
                 else: # if the respnse is wrong
                     op= self.switcher.get(self.ifWrong)
@@ -135,13 +131,29 @@ class CMD:
                         sys.exit()
 
                     else:
-                        self.reportOnLogFile(logFile, i, responseStr, op) 
                         i += op
+                        self.reportOnLogFile(logFile, i, responseStr, op) 
+                        
                 i+=1
             self.calErrorStats(outputFile)
-        except serial.serialutil.SerialException as error:
-            sys.exit(error.strerror)
+        except (serial.serialutil.SerialException, KeyboardInterrupt) as error:
+            sys.exit(error)
     
+
+    def read (self, ser):
+        '''
+        This function is called to read from serial port
+        '''
+        response = []
+        while True:
+            raw = ser.readline()
+            if raw == b'':
+                break
+            line = raw.decode()
+            response.append(line.strip())
+        responseStr= "".join(response)
+        return responseStr
+
 
     def reportOnLogFile(self, logFile, i, responseStr, op):
         '''
@@ -149,7 +161,7 @@ class CMD:
         outputfile.
         '''
         if responseStr.startswith("ERROR: "):
-            errorCode= int(responseStr.strip()[6:])
+            errorCode= responseStr.strip()
             if  errorCode in self.wrongStats:
                 self.wrongStats[errorCode]+= 1
             else: 
@@ -160,9 +172,9 @@ class CMD:
             else: 
                 self.wrongStats['others']=1
         if not op == "exit":
-            logFile.write(f"{self.AT} No.{str(i)}:\n     {responseStr}")
+            logFile.write(f"{self.AT} No.{str(i)}:\n     {responseStr}\n")
         else:
-            logFile.write(f"{self.AT} No.{str(i)}, terminating the entire process:\n     {responseStr}")
+            logFile.write(f"{self.AT} No.{str(i)}, terminating the entire process:\n     {responseStr}\n")
 
 
     
@@ -173,13 +185,13 @@ class CMD:
         '''
         outputFile.write(f"{self.AT}: Total {self.times} runs; {self.successTimes} successes; success rate is {100*self.successTimes/self.times}%\n")
         for key in self.wrongStats:
-            if type(key)==int: 
-                outputFile.write(f"     ERROR {key}: appeared {self.wrongStats[key]} times； error rate is {100*self.wrongStats[key]/self.times}%\n")
+            if key.startswith("ERROR"): 
+                outputFile.write(f"     {key}: appeared {self.wrongStats[key]} times； error rate is {100*self.wrongStats[key]/self.times}%\n")
             else:
                 if key == 'others':
                     outputFile.write(f"     Other errors: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\n")
-                else:
-                    outputFile.write(f"     Empty response: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\n")
+                # else:
+                #     outputFile.write(f"     Empty response: appeared {self.wrongStats[key]} times; rate is {100*self.wrongStats[key]/self.times}%\r\n")
         outputFile.write("\n")
 
 
